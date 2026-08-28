@@ -1,0 +1,83 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+myenv/
+venv/
+.venv/
+env/
+
+# DVC - keep dvc.lock tracked for reproducibility
+/data/raw/
+/data/labelled/
+/data/interim/
+/data/processed/
+/dvc_cache/
+/.dvc/cache/
+
+# Large data - DVC tracked or ignored (avoid GitHub 100MB limit)
+/data/external/
+Sentiment_Analysis_1.csv
+tweets_preprocessing.csv
+dataset.csv
+notebooks/dataset.csv
+notebooks/tweets_preprocessing.csv
+
+# Deep learning models (30MB each) - use DVC or Git LFS
+/models/*.h5
+/models/*.keras
+*.h5
+*.keras
+
+# Pipeline artifacts (DVC-tracked or regenerable)
+/lgbm_model.pkl
+/tfidf_vectorizer.pkl
+/experiment_info.json
+/confusion_matrix_*.png
+/deployment.zip
+
+# MLflow - ignore all mlruns recursively
+/mlruns/
+**/mlruns/
+mlruns/
+notebooks/mlruns/
+flask_app/mlruns/
+mlflow.db
+**/mlflow.db
+/mlflow.db-journal
+
+# Logs
+*.log
+
+# Environment variables
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# pytest / tox
+.pytest_cache/
+.tox/
+
+# ngrok
+.ngrok2/
+
+# Misc large / duplicate / temp
+New/

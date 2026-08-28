@@ -1,0 +1,53 @@
+# Git
+.git
+.gitignore
+.github
+
+# DVC and Data
+.dvc/
+data/
+notebooks/
+notebooks/mlruns/
+mlruns/
+*.csv
+*.db
+*.db-journal
+Sentiment_Analysis_1.csv
+tweets_preprocessing.csv
+dataset.csv
+
+# Models
+models/
+*.h5
+*.keras
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Logs and OS
+*.log
+.DS_Store
+Thumbs.db
+.ipynb_checkpoints/
+.vscode/
+.idea/
+
+# Docs
+docs/
+references/
+reports/
+New/
+deployment.zip
+confusion_matrix*.png
+experiment_info.json
+mlflow.db
+tox.ini
+Makefile
+dvc.yaml
+params.yaml

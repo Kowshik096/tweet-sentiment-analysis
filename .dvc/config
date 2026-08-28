@@ -1,0 +1,8 @@
+[core]
+    remote = myremote
+# Configure your DVC remote storage, e.g. S3:
+# ['remote "myremote"']
+#     url = s3://your-bucket-name/data
+# Local folder remote example:
+# ['remote "myremote"']
+#     url = ../dvc_remote
