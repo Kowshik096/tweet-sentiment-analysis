@@ -81,3 +81,10 @@ desktop.ini
 
 # Misc large / duplicate / temp
 New/
+
+# Consolidated audit backup (large binaries, local only)
+/_consolidated_from_C_drive/
+CONSOLIDATION_REPORT.md
+
+# Large reference archives (consolidated zip, local only)
+references/**/*.zip
