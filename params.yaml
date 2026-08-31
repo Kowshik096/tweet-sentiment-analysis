@@ -12,3 +12,7 @@ model_building:
   learning_rate: 0.09
   max_depth: 20
   n_estimators: 367
+  reg_alpha: 0.1
+  reg_lambda: 0.1
+  is_unbalance: true
+  class_weight: "balanced"

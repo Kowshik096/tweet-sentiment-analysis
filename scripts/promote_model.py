@@ -9,7 +9,10 @@ def promote_model():
 
     model_name = "tweet_sentiment_model"
     # Get the latest version in staging
-    latest_version_staging = client.get_latest_versions(model_name, stages=["Staging"])[0].version
+    staging_versions = client.get_latest_versions(model_name, stages=["Staging"])
+    if not staging_versions:
+        raise RuntimeError(f"No model found in 'Staging' stage for '{model_name}'. Cannot promote.")
+    latest_version_staging = staging_versions[0].version
 
     # Archive the current production model
     prod_versions = client.get_latest_versions(model_name, stages=["Production"])

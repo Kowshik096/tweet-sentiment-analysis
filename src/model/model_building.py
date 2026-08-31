@@ -84,17 +84,17 @@ def apply_tfidf(train_data: pd.DataFrame, max_features: int, ngram_range: tuple)
         raise
 
 
-def train_lgbm(X_train: np.ndarray, y_train: np.ndarray, learning_rate: float, max_depth: int, n_estimators: int) -> lgb.LGBMClassifier:
+def train_lgbm(X_train: np.ndarray, y_train: np.ndarray, learning_rate: float, max_depth: int, n_estimators: int, reg_alpha: float, reg_lambda: float, is_unbalance: bool, class_weight: str) -> lgb.LGBMClassifier:
     """Train a LightGBM model."""
     try:
         best_model = lgb.LGBMClassifier(
             objective='multiclass',
             num_class=3,
             metric="multi_logloss",
-            is_unbalance=True,
-            class_weight="balanced",
-            reg_alpha=0.1,  # L1 regularization
-            reg_lambda=0.1,  # L2 regularization
+            is_unbalance=is_unbalance,
+            class_weight=class_weight,
+            reg_alpha=reg_alpha,
+            reg_lambda=reg_lambda,
             learning_rate=learning_rate,
             max_depth=max_depth,
             n_estimators=n_estimators
@@ -137,6 +137,10 @@ def main():
         learning_rate = params['model_building']['learning_rate']
         max_depth = params['model_building']['max_depth']
         n_estimators = params['model_building']['n_estimators']
+        reg_alpha = params['model_building']['reg_alpha']
+        reg_lambda = params['model_building']['reg_lambda']
+        is_unbalance = params['model_building']['is_unbalance']
+        class_weight = params['model_building']['class_weight']
 
         # Load the preprocessed training data from the interim directory
         train_data = load_data(os.path.join(root_dir, 'data/interim/train_processed.csv'))
@@ -145,7 +149,8 @@ def main():
         X_train_tfidf, y_train = apply_tfidf(train_data, max_features, ngram_range)
 
         # Train the LightGBM model using hyperparameters from params.yaml
-        best_model = train_lgbm(X_train_tfidf, y_train, learning_rate, max_depth, n_estimators)
+        best_model = train_lgbm(X_train_tfidf, y_train, learning_rate, max_depth, n_estimators,
+                                reg_alpha, reg_lambda, is_unbalance, class_weight)
 
         # Save the trained model in the root directory
         save_model(best_model, os.path.join(root_dir, 'lgbm_model.pkl'))

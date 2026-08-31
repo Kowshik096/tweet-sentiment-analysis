@@ -11,54 +11,17 @@ from wordcloud import WordCloud
 import mlflow
 import numpy as np
 import joblib
-import re
 import os
 import pandas as pd
 from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
 from mlflow.tracking import MlflowClient
 import matplotlib.dates as mdates
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from src.preprocessing import preprocess_comment
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
-
-# Define the preprocessing function (must mirror src/data/data_preprocessing.py)
-def preprocess_comment(comment):
-    """Apply preprocessing transformations to a tweet."""
-    try:
-        # Convert to lowercase
-        comment = comment.lower()
-
-        # Remove URLs
-        comment = re.sub(r'http\S+|www\S+', '', comment)
-
-        # Remove @mentions
-        comment = re.sub(r'@\w+', '', comment)
-
-        # Keep hashtag words but drop the '#' symbol
-        comment = re.sub(r'#', '', comment)
-
-        # Remove trailing and leading whitespaces
-        comment = comment.strip()
-
-        # Remove newline characters
-        comment = re.sub(r'\n', ' ', comment)
-
-        # Remove non-alphanumeric characters, except punctuation
-        comment = re.sub(r'[^A-Za-z0-9\s!?.,]', '', comment)
-
-        # Remove stopwords but retain important ones for sentiment analysis
-        stop_words = set(stopwords.words('english')) - {'not', 'but', 'however', 'no', 'yet'}
-        comment = ' '.join([word for word in comment.split() if word not in stop_words])
-
-        # Lemmatize the words
-        lemmatizer = WordNetLemmatizer()
-        comment = ' '.join([lemmatizer.lemmatize(word) for word in comment.split()])
-
-        return comment
-    except Exception as e:
-        print(f"Error in preprocessing comment: {e}")
-        return comment
 
 # Load the model and vectorizer from the model registry and local storage
 def get_tracking_uri():
@@ -78,8 +41,20 @@ def load_model_and_vectorizer(model_name, model_stage_or_version, vectorizer_pat
     vectorizer = joblib.load(vectorizer_path)  # Load the vectorizer
     return model, vectorizer
 
-# Initialize the model and vectorizer (defaults to the Production stage; override with MODEL_STAGE env var)
-model, vectorizer = load_model_and_vectorizer("tweet_sentiment_model", os.environ.get('MODEL_STAGE', 'Production'), "./tfidf_vectorizer.pkl")
+# Lazy-load model and vectorizer on first request
+_model = None
+_vectorizer = None
+
+
+def get_model_and_vectorizer():
+    global _model, _vectorizer
+    if _model is None or _vectorizer is None:
+        _model, _vectorizer = load_model_and_vectorizer(
+            "tweet_sentiment_model",
+            os.environ.get('MODEL_STAGE', 'Production'),
+            "./tfidf_vectorizer.pkl"
+        )
+    return _model, _vectorizer
 
 @app.route('/')
 def home():
@@ -94,6 +69,8 @@ def predict_with_timestamps():
         return jsonify({"error": "No comments provided"}), 400
 
     try:
+        model, vectorizer = get_model_and_vectorizer()
+
         comments = [item['text'] for item in comments_data]
         timestamps = [item['timestamp'] for item in comments_data]
 
@@ -129,6 +106,8 @@ def predict():
         return jsonify({"error": "No comments provided"}), 400
 
     try:
+        model, vectorizer = get_model_and_vectorizer()
+
         # Preprocess each comment before vectorizing
         preprocessed_comments = [preprocess_comment(comment) for comment in comments]
 
@@ -256,7 +235,7 @@ def generate_trend_graph():
         sentiment_labels = {-1: 'Negative', 0: 'Neutral', 1: 'Positive'}
 
         # Resample the data over monthly intervals and count sentiments
-        monthly_counts = df.resample('M')['sentiment'].value_counts().unstack(fill_value=0)
+        monthly_counts = df.resample('ME')['sentiment'].value_counts().unstack(fill_value=0)
 
         # Calculate total counts per month
         monthly_totals = monthly_counts.sum(axis=1)

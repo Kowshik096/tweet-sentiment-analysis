@@ -9,6 +9,17 @@ import os
 # Set your tracking URI (env var override, local sqlite default)
 mlflow.set_tracking_uri(os.environ.get('MLFLOW_TRACKING_URI', 'sqlite:///mlflow.db'))
 
+
+def _signature_to_dict(sig):
+    """Convert MLflow ModelSignature to a comparable dict."""
+    if sig is None:
+        return None
+    return {
+        "inputs": sig.inputs.to_dict() if sig.inputs else None,
+        "outputs": sig.outputs.to_dict() if sig.outputs else None,
+    }
+
+
 @pytest.mark.parametrize("model_name, stage, test_data_path, vectorizer_path", [
     ("tweet_sentiment_model", "staging", "data/interim/test_processed.csv", "tfidf_vectorizer.pkl"),
 ])
@@ -45,5 +56,6 @@ def test_model_signature(model_name, stage, test_data_path, vectorizer_path):
     # Compare the inferred signature with the model's expected signature
     expected_signature = mlflow.models.get_model_info(model_uri).signature
 
-    assert signature == expected_signature, "Model signature does not match"
+    assert _signature_to_dict(signature) == _signature_to_dict(expected_signature), \
+        f"Model signature mismatch:\n  got:      {_signature_to_dict(signature)}\n  expected: {_signature_to_dict(expected_signature)}"
     print("Model signature test passed.")
