@@ -9,6 +9,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY flask_app/ /app/
 COPY tfidf_vectorizer.pkl /app/tfidf_vectorizer.pkl
+COPY lgbm_model.pkl /app/lgbm_model.pkl
+COPY src/ /app/src/
 
 RUN python -m nltk.downloader stopwords wordnet vader_lexicon
 

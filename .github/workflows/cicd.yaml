@@ -1,0 +1,76 @@
+name: CICD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+
+jobs:
+  model-deployment:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Pull DVC-tracked data (if a remote is configured)
+        run: |
+          if dvc remote list 2>/dev/null | grep -q .; then
+            dvc pull
+          elif [ -f data/external/tweets_v8.csv ]; then
+            echo "Source dataset present locally; skipping dvc pull."
+          else
+            echo "ERROR: data/external/tweets_v8.csv is missing and no DVC remote is configured."
+            echo "Set a DVC remote (dvc remote add) or place the dataset at data/external/tweets_v8.csv."
+            exit 1
+          fi
+
+      - name: Run pipeline
+        run: |
+          dvc repro
+
+      - name: Run model loading test
+        run: |
+          pytest scripts/test_load_model.py -v
+
+      - name: Run model signature test
+        run: |
+          pytest scripts/test_model_signature.py -v
+
+      - name: Run model performance test
+        run: |
+          pytest scripts/test_model_performance.py -v
+
+      - name: Run all tests
+        run: |
+          pytest scripts/ -v
+
+      - name: Promote model to production
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: python scripts/promote_model.py
+
+      - name: Build Docker image
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker build -t tweet-sentiment-plugin .

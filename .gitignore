@@ -37,12 +37,17 @@ notebooks/tweets_preprocessing.csv
 *.h5
 *.keras
 
-# Pipeline artifacts (DVC-tracked or regenerable)
+# Pipeline artifacts (DVC-tracked or regenerable).
+# The leading slash anchors these to the repo root, so the flask_app/
+# copy of tfidf_vectorizer.pkl needs its own rule below.
 /lgbm_model.pkl
 /tfidf_vectorizer.pkl
 /experiment_info.json
 /confusion_matrix_*.png
 /deployment.zip
+# The Flask app copies tfidf_vectorizer.pkl next to app.py for the local
+# fallback loader; it is still a generated artifact and must not be tracked.
+/flask_app/tfidf_vectorizer.pkl
 
 # MLflow - ignore all mlruns recursively
 /mlruns/

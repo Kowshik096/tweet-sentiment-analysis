@@ -1,5 +1,9 @@
-tweet-sentiment-analysis
-========================
+# tweet-sentiment-analysis
+
+![Tests](https://github.com/Kowshik096/tweet-sentiment-analysis/actions/workflows/cicd.yaml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
+![Docker](https://img.shields.io/badge/docker-ready-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 Sentiment analysis for Netflix *Squid Game* tweets — a replica of the
 CampusX "yt-comment-sentiment-analysis" capstone project, adapted to the
@@ -7,7 +11,7 @@ CampusX "yt-comment-sentiment-analysis" capstone project, adapted to the
 
 A Chrome-plugin-ready API that detects tweet sentiment (positive / neutral /
 negative), with a full MLOps pipeline: DVC versioning, MLflow tracking and
-model registry, CI/CD, Dockerization and AWS deployment.
+model registry, CI/CD, and Dockerization.
 
 Pipeline
 --------
@@ -26,37 +30,39 @@ Run the pipeline:
 Architecture
 ------------
 
-    tweets_v8.csv (80,019 tweets)
-            │
-            ▼
-    ┌─────────────────┐   ┌──────────────────┐   ┌───────────────────────┐
-    │ data_ingestion   │──▶│ data_labeling     │──▶│ data_preprocessing     │
-    │ dedupe, retweets,│   │ VADER compound    │   │ lowercase, URLs/mentions│
-    │ null/empty drop  │   │ → -1 / 0 / 1      │   │ stopwords, lemmatize    │
-    └─────────────────┘   └──────────────────┘   └───────────────────────┘
-            DVC-tracked data            params.yaml-driven
-                                                        │
-                                                        ▼
-                                        ┌─────────────────────────────┐
-                                        │ model_building               │
-                                        │ TF-IDF (1–3 grams, 10k feats)│
-                                        │ LightGBM multiclass          │
-                                        └─────────────────────────────┘
-                                                        │
-                              lgbm_model.pkl + tfidf_vectorizer.pkl
-                                                        │
-                                                        ▼
-    ┌──────────────────┐    ┌───────────────────────────────────────────┐
-    │ MLflow Registry   │◀───│ model_evaluation: metrics, confusion      │
-    │ Staging → Prod    │    │ matrix, signature (dvc-pipeline-runs)     │
-    └──────────────────┘    └───────────────────────────────────────────┘
-            │ pytest gates: load / signature / performance
-            ▼
-    ┌──────────────────┐    ┌───────────────────────────────────────────┐
-    │ Flask API :5000   │    │ CI/CD: dvc repro → dvc push → pytest →    │
-    │ /predict, charts, │    │ promote → Docker → ECR → CodeDeploy (AWS) │
-    │ wordcloud, trends │    └───────────────────────────────────────────┘
-    └──────────────────┘
+```mermaid
+flowchart TD
+    A[📄 tweets_v8.csv<br/>80,019 tweets] --> B[data_ingestion]
+    B --> C[data_labeling]
+    C --> D[data_preprocessing]
+    D --> E[model_building]
+    E --> F[model_evaluation]
+    F --> G[model_registration]
+    G --> H[MLflow Registry<br/>Staging → Production]
+    H --> I[Flask API :5000]
+    I --> J[CI/CD Pipeline]
+    J --> K[Docker Build<br/>GitHub Actions]
+
+    style A fill:#f9f,stroke:#333
+    style H fill:#bbf,stroke:#333
+    style I fill:#bfb,stroke:#333
+    style K fill:#ffb,stroke:#333
+```
+
+### Pipeline Stages
+
+| Stage | Description | Output |
+|-------|-------------|--------|
+| `data_ingestion` | Dedupe, drop retweets/nulls/empty | `data/raw/train.csv`, `test.csv` |
+| `data_labeling` | VADER compound → {-1, 0, 1} | `data/labelled/train_labelled.csv`, `test_labelled.csv` |
+| `data_preprocessing` | Lowercase, remove URLs/@mentions, stopwords, lemmatize | `data/interim/train_processed.csv`, `test_processed.csv` |
+| `model_building` | TF-IDF (1–3 grams, 10k) + LightGBM | `lgbm_model.pkl`, `tfidf_vectorizer.pkl` |
+| `model_evaluation` | Metrics, confusion matrix, MLflow signature | `experiment_info.json`, MLflow run |
+| `model_registration` | Register to MLflow, transition to Staging | Model version in registry |
+
+Run the pipeline:
+
+    dvc repro
 
 Results
 -------
@@ -126,7 +132,7 @@ DVC & MLflow — Roles in this Pipeline
 
 | Tool | What it does here | Where to see it |
 |---|---|---|
-| **DVC** | **Pipeline orchestration & data versioning.** `dvc.yaml` declares the 6-stage DAG, each stage's `cmd`/`deps`/`outs`/`params`. `dvc repro` runs only what changed; `dvc status` shows what's dirty; `dvc push/pull` versions large files (`data/`, `*.pkl`) to remote storage (S3) instead of git. `dvc.lock` + `params.yaml` make the run fully reproducible. | `dvc.yaml`, `dvc.lock`, `params.yaml`, `mlruns` ignored by git |
+| **DVC** | **Pipeline orchestration & data versioning.** `dvc.yaml` declares the 6-stage DAG, each stage's `cmd`/`deps`/`outs`/`params`. `dvc repro` runs only what changed; `dvc status` shows what's dirty; `dvc push/pull` versions large files (`data/`, `*.pkl`) to remote storage instead of git. `dvc.lock` + `params.yaml` make the run fully reproducible. | `dvc.yaml`, `dvc.lock`, `params.yaml`, `mlruns` ignored by git |
 | **MLflow** | **Experiment tracking & model registry.** Every run logs params, metrics, and artifacts to a tracking store. Notebooks log to `file:./notebooks/mlruns` (experiment per notebook); the production pipeline logs to `sqlite:///mlflow.db` (experiment `dvc-pipeline-runs`) with a confusion-matrix artifact and a model **signature**. `register_model.py` registers the model as `tweet_sentiment_model` → Staging; `promote_model.py` gates promotion to Production. `mlflow ui` visualizes all runs side-by-side. | `mlruns/`, `notebooks/mlruns/`, `mlflow.db`, `experiment_info.json` |
 
 In short: **DVC versions the *data and pipeline*; MLflow versions the *experiments and models*.**
@@ -135,6 +141,45 @@ Together they give you: "which data + which code + which params → which model 
 Run the pipeline:
 
     dvc repro
+
+Quick Start (Local Development)
+-------------------------------
+
+### Option 1: Docker (recommended)
+```bash
+# Build and run the Flask API
+docker build -t tweet-sentiment .
+docker run -p 5000:5000 tweet-sentiment
+# API at http://localhost:5000
+```
+
+### Option 2: Manual setup
+```bash
+# 1. Create virtual environment
+python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Download NLTK data
+python -c "import nltk; nltk.download('stopwords'); nltk.download('wordnet'); nltk.download('vader_lexicon')"
+
+# 4. Run pipeline (requires tweets_v8.csv in data/external/)
+dvc repro
+
+# 5. Start API
+cd flask_app && python app.py
+# API at http://localhost:5000
+```
+
+### Option 3: Using Make
+```bash
+make data       # Run data ingestion, labeling, preprocessing
+make train      # Train model
+make evaluate   # Evaluate and log to MLflow
+make serve      # Start Flask API
+make test       # Run all tests
+```
 
 Serving
 -------
@@ -150,7 +195,6 @@ Configuration
 
 - `params.yaml` — pipeline hyperparameters and VADER thresholds
 - `MLFLOW_TRACKING_URI` — env var; defaults to `sqlite:///mlflow.db` locally
-- AWS credentials — only needed for DVC remote push and deployment (GitHub secrets)
 
 Notebooks
 ---------

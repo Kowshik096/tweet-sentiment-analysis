@@ -1,13 +1,14 @@
-import mlflow.pyfunc
-import pytest
-import pandas as pd
-import numpy as np
-from mlflow.models import infer_signature
-from mlflow.tracking import MlflowClient
 import os
 
-# Set your tracking URI (env var override, local sqlite default)
-mlflow.set_tracking_uri(os.environ.get('MLFLOW_TRACKING_URI', 'sqlite:///mlflow.db'))
+import mlflow.pyfunc
+import pandas as pd
+import pytest
+from mlflow.models import infer_signature
+from mlflow.tracking import MlflowClient
+
+# Set your tracking URI (env var override; empty string falls back to the
+# local sqlite DB, matching the behavior of the production pipeline).
+mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI") or "sqlite:///mlflow.db")
 
 
 def _signature_to_dict(sig):
@@ -20,9 +21,17 @@ def _signature_to_dict(sig):
     }
 
 
-@pytest.mark.parametrize("model_name, stage, test_data_path, vectorizer_path", [
-    ("tweet_sentiment_model", "staging", "data/interim/test_processed.csv", "tfidf_vectorizer.pkl"),
-])
+@pytest.mark.parametrize(
+    "model_name, stage, test_data_path, vectorizer_path",
+    [
+        (
+            "tweet_sentiment_model",
+            "staging",
+            "data/interim/test_processed.csv",
+            "tfidf_vectorizer.pkl",
+        ),
+    ],
+)
 def test_model_signature(model_name, stage, test_data_path, vectorizer_path):
     client = MlflowClient()
 
@@ -38,16 +47,19 @@ def test_model_signature(model_name, stage, test_data_path, vectorizer_path):
 
     # Load the test data
     test_data = pd.read_csv(test_data_path)
-    X_test = test_data['clean_comment'].fillna('')
+    X_test = test_data["clean_comment"].fillna("")
 
     # Load the vectorizer and transform the data
     import pickle
-    with open(vectorizer_path, 'rb') as file:
+
+    with open(vectorizer_path, "rb") as file:
         vectorizer = pickle.load(file)
     X_test_tfidf = vectorizer.transform(X_test)
 
     # Create a DataFrame for the signature (dense representation)
-    input_example = pd.DataFrame(X_test_tfidf.toarray()[:5], columns=vectorizer.get_feature_names_out())
+    input_example = pd.DataFrame(
+        X_test_tfidf.toarray()[:5], columns=vectorizer.get_feature_names_out()
+    )
 
     # Infer the signature (pyfunc models expect the DataFrame input format)
     predictions = model.predict(input_example)
@@ -56,6 +68,9 @@ def test_model_signature(model_name, stage, test_data_path, vectorizer_path):
     # Compare the inferred signature with the model's expected signature
     expected_signature = mlflow.models.get_model_info(model_uri).signature
 
-    assert _signature_to_dict(signature) == _signature_to_dict(expected_signature), \
-        f"Model signature mismatch:\n  got:      {_signature_to_dict(signature)}\n  expected: {_signature_to_dict(expected_signature)}"
+    assert _signature_to_dict(signature) == _signature_to_dict(expected_signature), (
+        f"Model signature mismatch:\n"
+        f"  got:      {_signature_to_dict(signature)}\n"
+        f"  expected: {_signature_to_dict(expected_signature)}"
+    )
     print("Model signature test passed.")

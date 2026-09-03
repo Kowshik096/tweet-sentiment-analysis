@@ -1,4 +1,4 @@
-.PHONY: clean data lint requirements create_environment help
+.PHONY: clean data lint requirements create_environment help train evaluate test serve docker-build docker-run
 
 #################################################################################
 # GLOBALS                                                                       #
@@ -29,6 +29,30 @@ requirements: test_environment
 data:
 	dvc repro
 
+## Train model only (requires processed data)
+train:
+	python src/model/model_building.py
+
+## Evaluate model and log to MLflow
+evaluate:
+	python src/model/model_evaluation.py
+
+## Register model to MLflow registry
+register:
+	python src/model/register_model.py
+
+## Run all tests
+test:
+	pytest scripts/ -v
+
+## Run Flask API tests only
+test-api:
+	pytest scripts/test_flask_api.py -v
+
+## Run model tests only
+test-model:
+	pytest scripts/test_load_model.py scripts/test_model_signature.py scripts/test_model_performance.py -v
+
 ## Delete all compiled Python files
 clean:
 	find . -type f -name "*.py[co]" -delete
@@ -50,6 +74,18 @@ test_environment:
 ## Run the Flask app locally
 serve:
 	cd flask_app && python app.py
+
+## Build Docker image
+docker-build:
+	docker build -t tweet-sentiment .
+
+## Run Docker container
+docker-run:
+	docker run -p 5000:5000 tweet-sentiment
+
+## Download NLTK data
+nltk-data:
+	python -c "import nltk; nltk.download('stopwords'); nltk.download('wordnet'); nltk.download('vader_lexicon')"
 
 #################################################################################
 # Self Documenting Commands                                                     #

@@ -1,41 +1,46 @@
 import re
+
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
+# Module-level lemmatizer: WordNetLemmatizer is stateless, so a single
+# instance is reused across calls instead of being rebuilt per comment.
+_LEMMATIZER = WordNetLemmatizer()
 
-def preprocess_comment(comment):
+# Stopwords retained because they carry sentiment signal for this task.
+_STOP_WORDS = set(stopwords.words("english")) - {"not", "but", "however", "no", "yet"}
+
+
+def preprocess_comment(comment: str) -> str:
     """Apply preprocessing transformations to a tweet."""
-    try:
-        # Convert to lowercase
-        comment = comment.lower()
+    if not isinstance(comment, str):
+        raise TypeError(f"preprocess_comment expects a string, got {type(comment).__name__}")
 
-        # Remove URLs
-        comment = re.sub(r'http\S+|www\S+', '', comment)
+    # Convert to lowercase
+    comment = comment.lower()
 
-        # Remove @mentions
-        comment = re.sub(r'@\w+', '', comment)
+    # Remove URLs
+    comment = re.sub(r"http\S+|www\S+", "", comment)
 
-        # Keep hashtag words but drop the '#' symbol
-        comment = re.sub(r'#', '', comment)
+    # Remove @mentions
+    comment = re.sub(r"@\w+", "", comment)
 
-        # Remove trailing and leading whitespaces
-        comment = comment.strip()
+    # Keep hashtag words but drop the '#' symbol
+    comment = re.sub(r"#", "", comment)
 
-        # Remove newline characters
-        comment = re.sub(r'\n', ' ', comment)
+    # Remove trailing and leading whitespaces
+    comment = comment.strip()
 
-        # Remove non-alphanumeric characters, except punctuation
-        comment = re.sub(r'[^A-Za-z0-9\s!?.,]', '', comment)
+    # Remove newline characters
+    comment = re.sub(r"\n", " ", comment)
 
-        # Remove stopwords but retain important ones for sentiment analysis
-        stop_words = set(stopwords.words('english')) - {'not', 'but', 'however', 'no', 'yet'}
-        comment = ' '.join([word for word in comment.split() if word not in stop_words])
+    # Remove non-alphanumeric characters, except punctuation
+    comment = re.sub(r"[^A-Za-z0-9\s!?.,]", "", comment)
 
-        # Lemmatize the words
-        lemmatizer = WordNetLemmatizer()
-        comment = ' '.join([lemmatizer.lemmatize(word) for word in comment.split()])
+    # Remove stopwords but retain important ones for sentiment analysis
+    comment = " ".join([word for word in comment.split() if word not in _STOP_WORDS])
 
-        return comment
-    except Exception as e:
-        print(f"Error in preprocessing comment: {e}")
-        return comment
+    # Lemmatize the words
+    comment = " ".join([_LEMMATIZER.lemmatize(word) for word in comment.split()])
+
+    return comment

@@ -1,8 +1,10 @@
 import os
+
 import mlflow
 
-# Set your tracking URI (env var override, local sqlite default)
-mlflow.set_tracking_uri(os.environ.get('MLFLOW_TRACKING_URI', 'sqlite:///mlflow.db'))
+# Set your tracking URI (env var override; empty string falls back to the
+# local sqlite DB, matching the behavior of the production pipeline).
+mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI") or "sqlite:///mlflow.db")
 
 
 def test_mlflow_connection():
