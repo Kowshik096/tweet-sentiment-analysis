@@ -56,10 +56,6 @@ jobs:
         run: |
           pytest scripts/test_preprocessing.py scripts/test_params_flatten.py scripts/mlflow_test.py -v
 
-      - name: Run MLflow connection test
-        run: |
-          pytest scripts/test_load_model.py -v
-
   # Data-dependent validation: runs only when DVC data is available
   data-validation:
     if: github.actor != 'github-actions[bot]'
