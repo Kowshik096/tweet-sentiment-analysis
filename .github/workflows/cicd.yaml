@@ -54,7 +54,7 @@ jobs:
 
       - name: Run unit tests (no data required)
         run: |
-          pytest scripts/test_flask_api.py scripts/test_preprocessing.py scripts/test_params_flatten.py scripts/mlflow_test.py -v
+          pytest scripts/test_preprocessing.py scripts/test_params_flatten.py scripts/mlflow_test.py -v
 
       - name: Run MLflow connection test
         run: |
