@@ -33,6 +33,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
+          pip list | grep -E "flake8|black|isort|mypy"
 
       - name: Run linting
         run: |
@@ -75,6 +76,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
+          pip list | grep -E "flake8|black|isort|mypy"
 
       - name: Pull DVC-tracked data (if a remote is configured)
         run: |
