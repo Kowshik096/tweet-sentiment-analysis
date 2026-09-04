@@ -12,6 +12,20 @@ permissions:
 env:
   MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
 
+name: CICD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+
 jobs:
   # Repository-level validation: runs on every push/PR without requiring data
   repo-validation:
@@ -78,35 +92,50 @@ jobs:
           pip install -r requirements.txt
           pip list | grep -E "flake8|black|isort|mypy"
 
-      - name: Pull DVC-tracked data (if a remote is configured)
+      - name: Check for DVC data availability
+        id: check-data
+        run: |
+          if dvc remote list 2>/dev/null | grep -q .; then
+            echo "Data available via DVC remote."
+            echo "data_available=true" >> $GITHUB_OUTPUT
+          elif [ -f data/external/tweets_v8.csv ]; then
+            echo "Source dataset present locally."
+            echo "data_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "No DVC remote configured and no local data. Skipping data-dependent validation."
+            echo "Set a DVC remote (dvc remote add) or place the dataset at data/external/tweets_v8.csv to enable full pipeline validation."
+            echo "data_available=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Pull DVC data
+        if: steps.check-data.outputs.data_available == 'true'
         run: |
           if dvc remote list 2>/dev/null | grep -q .; then
             dvc pull
           elif [ -f data/external/tweets_v8.csv ]; then
             echo "Source dataset present locally; skipping dvc pull."
-          else
-            echo "No DVC remote configured and no local data. Skipping data-dependent validation."
-            echo "Set a DVC remote (dvc remote add) or place the dataset at data/external/tweets_v8.csv to enable full pipeline validation."
-            exit 0
           fi
 
       - name: Run pipeline
+        if: steps.check-data.outputs.data_available == 'true'
         run: |
           dvc repro
 
       - name: Run model signature test
+        if: steps.check-data.outputs.data_available == 'true'
         run: |
           pytest scripts/test_model_signature.py -v
 
       - name: Run model performance test
+        if: steps.check-data.outputs.data_available == 'true'
         run: |
           pytest scripts/test_model_performance.py -v
 
       - name: Promote model to production
-        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.check-data.outputs.data_available == 'true'
         run: python scripts/promote_model.py
 
       - name: Build Docker image
-        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.check-data.outputs.data_available == 'true'
         run: |
           docker build -t tweet-sentiment-plugin .
