@@ -12,20 +12,6 @@ permissions:
 env:
   MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
 
-name: CICD Pipeline
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-permissions:
-  contents: read
-
-env:
-  MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
-
 jobs:
   # Repository-level validation: runs on every push/PR without requiring data
   repo-validation:
